@@ -1,0 +1,17 @@
+# Node dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build output (we rebuild inside Docker)
+dist/
+
+# Environment files
+.env
+.env.local
+
+# IDE and system files
+.vscode/
+.idea/
+.DS_Store
