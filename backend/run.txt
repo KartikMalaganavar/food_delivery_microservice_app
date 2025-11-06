@@ -1,0 +1,13 @@
+cd backend/ && source backend_venv/bin/activate && uvicorn api-gateway.main:app --host 0.0.0.0 --port 8000 --reload
+
+cd backend/ && source backend_venv/bin/activate && uvicorn auth-service.main:app --host 0.0.0.0 --port 8001 --reload 
+
+cd backend/ && source backend_venv/bin/activate && uvicorn restaurant-service.main:app --host 0.0.0.0 --port 8002 --reload 
+
+cd backend/ && source backend_venv/bin/activate && uvicorn order-service.main:app --host 0.0.0.0 --port 8003 --reload 
+
+cd backend/ && source backend_venv/bin/activate && uvicorn delivery-service.main:app --host 0.0.0.0 --port 8004 --reload 
+
+cd backend/ && source backend_venv/bin/activate && uvicorn payment-service.main:app --host 0.0.0.0 --port 8005 --reload 
+
+cd backend/ && source backend_venv/bin/activate && uvicorn notification-service.main:app --host 0.0.0.0 --port 8006 --reload 
