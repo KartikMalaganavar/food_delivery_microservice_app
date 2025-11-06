@@ -79,6 +79,11 @@ from datetime import datetime
 import asyncio, json
 from common.kafka_utils import get_producer, stop_producer
 from aiokafka import AIOKafkaConsumer
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Global variables
 producer = None
@@ -89,6 +94,7 @@ async def consume_order_events():
         "order.created",
         "order.updated",
         "order.cancelled",
+        "payment.completed",
         bootstrap_servers='localhost:9092',
         group_id="restaurant-service-group",
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
@@ -103,6 +109,8 @@ async def consume_order_events():
                 await handle_order_updated(msg.value)
             elif msg.topic == "order.cancelled":
                 await handle_order_cancelled(msg.value)
+            elif msg.topic == "payment.completed":
+                await handle_payment_completed(msg.value)
     finally:
         await consumer.stop()
 
@@ -123,6 +131,23 @@ async def handle_order_created(order_data: dict):
         session.add(restaurant_order)
         await session.commit()
         print(f"Restaurant order created for order {order_data['order_id']}")
+
+async def handle_payment_completed(data: dict):
+    """Handle payment completion - order is now confirmed for delivery"""
+
+    logger.info(f"Received : payment.completed event {data}")
+
+    # Update status in orders, if payment is completed
+    async with AsyncSessionLocal() as session:
+        order = await session.execute(
+            sa.select(RestaurantOrder).where(RestaurantOrder.order_id == data["order_id"])
+        )
+        order = order.scalar_one_or_none()
+        
+        if order and order.payment_status == "PENDING":
+            order.payment_status = "COMPLETED"
+            await session.commit()
+
 
 async def handle_order_updated(order_data: dict):
     """Handle order updates from order service"""
@@ -236,6 +261,7 @@ class RestaurantOrder(Base):
     items = Column(JSON)  # List of ordered items with details
     total_amount = Column(Float, nullable=False)
     status = Column(String, default="RECEIVED")  # RECEIVED, PREPARING, READY, COMPLETED, CANCELLED
+    payment_status = Column(String, default="PENDING")  # PENDING, PROCESSING, COMPLETED 
     special_instructions = Column(Text)
     estimated_preparation_time = Column(Integer)  # in minutes
     actual_preparation_time = Column(Integer)  # in minutes
@@ -697,6 +723,8 @@ async def update_order_status(
         if user_data.get("role") != "admin" and restaurant.owner_id != user_data.get("sub"):
             raise HTTPException(status_code=403, detail="Not authorized to update orders for this restaurant")
         
+
+
         # Emit Kafka event to update order status
         event_data = {
             "order_id": order_id,
@@ -707,6 +735,71 @@ async def update_order_status(
         await producer.send_and_wait("order.updated", json.dumps(event_data).encode())
         
         return {"status": "UPDATED", "order_id": order_id, "new_status": status}
+
+# @app.post("/restaurants/{restaurant_id}/orders/{order_id}/status")
+# async def update_order_status(
+#     restaurant_id: int,
+#     order_id: int,
+#     status: str,
+#     user_data: dict = Depends(get_user_from_headers),
+# ):
+#     """Update restaurant order status (DB + Kafka)"""
+#     valid_statuses = ["RECEIVED", "PREPARING", "READY", "COMPLETED", "CANCELLED"]
+
+#     if status not in valid_statuses:
+#         raise HTTPException(
+#             status_code=400,
+#             detail=f"Invalid status. Must be one of: {valid_statuses}",
+#         )
+
+#     async with AsyncSessionLocal() as session:
+#         # Verify restaurant exists
+#         result = await session.execute(
+#             sa.select(Restaurant).where(Restaurant.id == restaurant_id)
+#         )
+#         restaurant = result.scalar_one_or_none()
+#         if not restaurant:
+#             raise HTTPException(status_code=404, detail="Restaurant not found")
+
+#         # Authorization check
+#         if user_data.get("role") != "admin" and restaurant.owner_id != user_data.get("sub"):
+#             raise HTTPException(status_code=403, detail="Not authorized to update orders for this restaurant")
+
+#         # Get the order from DB
+#         result = await session.execute(
+#             sa.select(RestaurantOrder).where(
+#                 RestaurantOrder.restaurant_id == restaurant_id,
+#                 RestaurantOrder.order_id == order_id
+#             )
+#         )
+#         order = result.scalar_one_or_none()
+
+#         if not order:
+#             raise HTTPException(status_code=404, detail="Order not found")
+
+#         # Update order status and timestamp
+#         order.status = status
+#         order.updated_at = datetime.utcnow()
+
+#         await session.commit()
+
+#         # Emit Kafka event to notify other services
+#         event_data = {
+#             "order_id": order_id,
+#             "restaurant_id": restaurant_id,
+#             "status": status,
+#             "updated_by": user_data.get("sub"),
+#             "timestamp": order.updated_at.isoformat()
+#         }
+#         await producer.send_and_wait("order.updated", json.dumps(event_data).encode())
+
+#         return {
+#             "message": "Order status updated successfully",
+#             "order_id": order_id,
+#             "restaurant_id": restaurant_id,
+#             "new_status": status
+#         }
+
 
 # Search and Filter Endpoints
 @app.get("/restaurants/search")
@@ -759,6 +852,9 @@ async def update_order_status(
     status_update: dict,
     user_data: dict = Depends(get_user_from_headers)
 ):
+    valid_statuses = ["RECEIVED", "PREPARING", "READY", "COMPLETED", "CANCELLED"]
+    
+
     """Update order status from restaurant side"""
     async with AsyncSessionLocal() as session:
         # Verify authorization
@@ -803,7 +899,7 @@ async def update_order_status(
             "status": status_update["status"],
             "updated_at": restaurant_order.updated_at.isoformat()
         }
-        await producer.send_and_wait("restaurant.order.updated", json.dumps(event_payload).encode("utf-8"))
+        await producer.send_and_wait("order.updated", json.dumps(event_payload).encode("utf-8"))
         
         return {"message": "Order status updated successfully"}
 

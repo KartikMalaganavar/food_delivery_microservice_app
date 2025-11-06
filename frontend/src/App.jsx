@@ -107,7 +107,7 @@ import CustomerDashboard from './components/customer/CustomerDashboard';
 // import Home from './components/Home';
 // import Navbar from './components/Navbar';
 // import CustomerDashboard from './pages/CustomerDashboard';
-// import RestaurantDashboard from './pages/RestaurantDashboard';
+import RestaurantDashboard from './pages/RestaurantDashboard';
 // import DeliveryDashboard from './pages/DeliveryDashboard';
 // import Unauthorized from './pages/Unauthorized';
 
@@ -178,8 +178,8 @@ function App() {
             path="/restaurant/*" 
             element={
               <ProtectedRoute requiredRole="restaurant">
-                {/* <RestaurantDashboard /> */}
-                <div>Restaurant</div>
+                <RestaurantDashboard />
+                {/* <div>Restaurant</div> */}
               </ProtectedRoute>
             } 
           />
