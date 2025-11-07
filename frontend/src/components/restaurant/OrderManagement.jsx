@@ -71,7 +71,7 @@ const OrderManagement = () => {
       case 'PREPARING': return 'bg-yellow-100 text-yellow-800';
       case 'READY': return 'bg-orange-100 text-orange-800';
       case 'OUT_FOR_DELIVERY': return 'bg-purple-100 text-purple-800';
-      case 'DELIVERED': return 'bg-green-100 text-green-800';
+      // case 'DELIVERED': return 'bg-green-100 text-green-800';
       case 'CANCELLED': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -82,8 +82,8 @@ const OrderManagement = () => {
       'RECEIVED': ['CONFIRMED', 'CANCELLED'],
       'CONFIRMED': ['PREPARING', 'CANCELLED'],
       'PREPARING': ['READY', 'CANCELLED'],
-      'READY': ['OUT_FOR_DELIVERY'],
-      'OUT_FOR_DELIVERY': ['DELIVERED']
+      'READY': ['COMPLETED'],
+      // 'OUT_FOR_DELIVERY': ['DELIVERED']
     };
     return statusFlow[currentStatus] || [];
   };

@@ -125,6 +125,7 @@ async def handle_order_created(order_data: dict):
             items=order_data["items"],
             total_amount=order_data["total"],
             status="RECEIVED",  # Map to restaurant service status
+            delivery_address = order_data["delivery_address"],
             estimated_preparation_time=calculate_preparation_time(order_data["items"])
         )
         
@@ -265,6 +266,7 @@ class RestaurantOrder(Base):
     special_instructions = Column(Text)
     estimated_preparation_time = Column(Integer)  # in minutes
     actual_preparation_time = Column(Integer)  # in minutes
+    delivery_address = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -897,7 +899,8 @@ async def update_order_status(
             "order_id": restaurant_order.order_id,
             "restaurant_id": restaurant_id,
             "status": status_update["status"],
-            "updated_at": restaurant_order.updated_at.isoformat()
+            "updated_at": restaurant_order.updated_at.isoformat(),
+            "delivery_address": restaurant_order.delivery_address
         }
         await producer.send_and_wait("order.updated", json.dumps(event_payload).encode("utf-8"))
         

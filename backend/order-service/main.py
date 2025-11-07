@@ -114,6 +114,7 @@ import sqlalchemy as sa
 from datetime import datetime
 import asyncio
 from common.kafka_utils import get_producer, stop_producer, start_consumer
+from common.jwt_utils import decode_token
 import json
 import uuid
 import logging
@@ -256,8 +257,10 @@ async def handle_order_updated(order_data: dict):
             status_mapping = {
                 "CONFIRMED": "CONFIRMED",      # Restaurant confirmed the order
                 "PREPARING": "PREPARING",      # Restaurant started preparing
-                "READY": "READY",              # Order is ready for pickup
+                "READY": "READY", # Order is ready for pickup
+                "OUT_FOR_DELIVERY":"OUT_FOR_DELIVERY", 
                 "COMPLETED": "COMPLETED",      # Order completed (if restaurant marks it)
+                "DELIVERED":"DELIVERED",
                 "CANCELLED": "CANCELLED"       # Restaurant cancelled the order
             }
             
