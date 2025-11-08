@@ -108,6 +108,8 @@ import CustomerDashboard from './components/customer/CustomerDashboard';
 // import Navbar from './components/Navbar';
 // import CustomerDashboard from './pages/CustomerDashboard';
 import RestaurantDashboard from './pages/RestaurantDashboard';
+import DeliveryDashboardRouter from './pages/DeliveryDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 // import DeliveryDashboard from './pages/DeliveryDashboard';
 // import Unauthorized from './pages/Unauthorized';
 
@@ -190,7 +192,8 @@ function App() {
             element={
               <ProtectedRoute requiredRole="delivery">
                 {/* <DeliveryDashboard /> */}
-                <div>Delivery</div>
+                <DeliveryDashboardRouter />
+                {/* <div>Delivery</div> */}
               </ProtectedRoute>
             } 
           />
@@ -200,7 +203,8 @@ function App() {
             path="/admin/*" 
             element={
               <ProtectedRoute requiredRole="admin">
-                <div>Admin Dashboard</div>
+                {/* <div>Admin Dashboard</div> */}
+                <AdminDashboard />
               </ProtectedRoute>
             } 
           />

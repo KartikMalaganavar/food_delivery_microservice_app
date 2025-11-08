@@ -258,8 +258,8 @@ async def handle_order_updated(order_data: dict):
                 "CONFIRMED": "CONFIRMED",      # Restaurant confirmed the order
                 "PREPARING": "PREPARING",      # Restaurant started preparing
                 "READY": "READY", # Order is ready for pickup
-                "OUT_FOR_DELIVERY":"OUT_FOR_DELIVERY", 
-                "COMPLETED": "COMPLETED",      # Order completed (if restaurant marks it)
+                "COMPLETED":"OUT_FOR_DELIVERY", 
+                "ON_THE_WAY": "ON_THE_WAY",      # Order completed (if restaurant marks it)
                 "DELIVERED":"DELIVERED",
                 "CANCELLED": "CANCELLED"       # Restaurant cancelled the order
             }
@@ -272,7 +272,7 @@ async def handle_order_updated(order_data: dict):
                     order.status = new_status
                     order.updated_at = datetime.utcnow()
                     
-                    await session.commit()
+                    await session.commit()  
 
             print(f"Order {order_data['order_id']} updated to {order_data['status']}")
 

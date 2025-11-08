@@ -6,6 +6,11 @@ from common.jwt_utils import create_access_token, decode_token
 from sqlalchemy import Column, Integer, String, text
 from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
+import datetime
+from common.kafka_utils import get_producer, start_consumer, stop_producer 
+import json
+from typing import Literal
+
 
 # User table for auth (simple)
 class User(Base):
@@ -16,10 +21,11 @@ class User(Base):
     role = Column(String, default="customer")  # customer / restaurant / delivery / admin
 
 # Pydantic
+
 class SignupSchema(BaseModel):
     username: str
     password: str
-    role: str = "customer"
+    role: Literal["customer", "admin", "restaurant", "delivery"] = "customer"
 
 class LoginSchema(BaseModel):
     username: str
@@ -43,9 +49,24 @@ async def signup(payload: SignupSchema):
         res = existing.first()
         if res:
             raise HTTPException(status_code=400, detail="username exists")
-        new = User(username=payload.username, hashed_password=payload.password, role=payload.role)
-        session.add(new)
+        new_user = User(username=payload.username, hashed_password=payload.password, role=payload.role)
+        session.add(new_user)
         await session.commit()
+
+
+        # Emit user registered event
+        event_data = {
+            "user_id": new_user.username,  # Using username as user_id for simplicity
+            "username": new_user.username,
+            "role": new_user.role,
+            # "created_at": datetime.utcnow().isoformat()
+        }
+        
+        # You'll need to set up Kafka producer in auth service
+        producer = await get_producer()
+        await producer.send_and_wait("user.registered", json.dumps(event_data).encode())
+        await stop_producer(producer)
+
         return {"ok": True, "msg": "created"}
 
 @app.post("/login")
