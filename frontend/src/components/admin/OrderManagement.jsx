@@ -13,7 +13,7 @@ const OrderManagement = () => {
     search: ''
   });
 
-  const API_BASE = 'http://localhost:8000/orders';
+  const API_BASE = 'http://localhost:8000';
 
   useEffect(() => {
     fetchOrders();
@@ -26,7 +26,7 @@ const OrderManagement = () => {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/orders`, {
+      const response = await axios.get(`${API_BASE}/orders/orders`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setOrders(response.data || []);
@@ -40,7 +40,7 @@ const OrderManagement = () => {
   const fetchOrderDetails = async (orderId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/orders/${orderId}`, {
+      const response = await axios.get(`${API_BASE}/orders/orders/${orderId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSelectedOrder(response.data);
@@ -78,8 +78,8 @@ const OrderManagement = () => {
   const updateOrderStatus = async (orderId, restaurantId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_BASE}/restaurants/${restaurantId}/orders/${orderId}/status`,
+      await axios.patch(
+        `${API_BASE}/restaurants/restaurants/${restaurantId}/orders/${orderId}/status`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );

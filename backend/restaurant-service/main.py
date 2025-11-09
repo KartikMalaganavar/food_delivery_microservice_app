@@ -284,17 +284,40 @@ class RestaurantCreateSchema(BaseModel):
     delivery_fee: float = 2.99
     image_url: Optional[str] = None
 
+class AddressSchema(BaseModel):
+    street: Optional[str]
+    city: Optional[str]
+    state: Optional[str]
+    zip_code: Optional[str]
+
+class DayHours(BaseModel):
+    open: str
+    close: str
+
+class OpeningHoursSchema(BaseModel):
+    monday: Optional[DayHours]
+    tuesday: Optional[DayHours]
+    wednesday: Optional[DayHours]
+    thursday: Optional[DayHours]
+    friday: Optional[DayHours]
+    saturday: Optional[DayHours]
+    sunday: Optional[DayHours]
+
 class RestaurantUpdateSchema(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    address: Optional[dict] = None
+    address: Optional[AddressSchema] = None
     phone: Optional[str] = None
-    opening_hours: Optional[dict] = None
+    email: Optional[str] = None
+    cuisine_type: Optional[str] = None
+    opening_hours: Optional[OpeningHoursSchema] = None
     delivery_time: Optional[str] = None
     min_order_amount: Optional[float] = None
     delivery_fee: Optional[float] = None
     image_url: Optional[str] = None
     is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
+
 
 class MenuItemCreateSchema(BaseModel):
     restaurant_id: int
@@ -463,6 +486,9 @@ async def update_restaurant(
     user_data: dict = Depends(get_user_from_headers)
 ):
     """Update restaurant details - only owner or admin"""
+
+    print("Entered", restaurant_data)
+
     async with AsyncSessionLocal() as session:
         restaurant = await session.execute(
             sa.select(Restaurant).where(Restaurant.id == restaurant_id)
@@ -698,6 +724,66 @@ async def get_restaurant_orders(
             }
         }
 
+@app.patch("/restaurants/{restaurant_id}/orders/{order_id}/status")
+async def update_order_status(
+    restaurant_id: int,
+    order_id: int,
+    status_update: dict,
+    user_data: dict = Depends(get_user_from_headers)
+):
+    valid_statuses = ["RECEIVED", "PREPARING", "READY", "COMPLETED", "CANCELLED"]
+    
+
+    """Update order status from restaurant side"""
+    async with AsyncSessionLocal() as session:
+        # Verify authorization
+        restaurant = await session.execute(
+            sa.select(Restaurant).where(Restaurant.id == restaurant_id)
+        )
+        restaurant = restaurant.scalar_one_or_none()
+        
+        if not restaurant:
+            raise HTTPException(status_code=404, detail="Restaurant not found")
+        
+        if user_data.get("role") != "admin" and restaurant.owner_id != user_data.get("sub"):
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        # Find restaurant order
+        result = await session.execute(
+            sa.select(RestaurantOrder).where(
+                RestaurantOrder.id == order_id,
+                RestaurantOrder.restaurant_id == restaurant_id
+            )
+        )
+        restaurant_order = result.scalar_one_or_none()
+        
+        if not restaurant_order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        # Update status
+        restaurant_order.status = status_update["status"]
+        restaurant_order.updated_at = datetime.utcnow()
+        
+        # If completed, set actual preparation time
+        if status_update["status"] == "COMPLETED":
+            preparation_time = (datetime.utcnow() - restaurant_order.created_at).total_seconds() / 60
+            restaurant_order.actual_preparation_time = int(preparation_time)
+        
+        await session.commit()
+        
+        # Emit event back to order service about status change
+        event_payload = {
+            "order_id": restaurant_order.order_id,
+            "restaurant_id": restaurant_id,
+            "status": status_update["status"],
+            "updated_at": restaurant_order.updated_at.isoformat(),
+            "delivery_address": restaurant_order.delivery_address
+        }
+        await producer.send_and_wait("order.updated", json.dumps(event_payload).encode("utf-8"))
+        
+        return {"message": "Order status updated successfully"}
+
+
 @app.post("/restaurants/{restaurant_id}/orders/{order_id}/status")
 async def update_order_status(
     restaurant_id: int,
@@ -847,64 +933,6 @@ async def get_menu_categories(restaurant_id: int):
         categories = categories.scalars().all()
         return {"categories": categories}
 
-@app.patch("/restaurants/{restaurant_id}/orders/{order_id}/status")
-async def update_order_status(
-    restaurant_id: int,
-    order_id: int,
-    status_update: dict,
-    user_data: dict = Depends(get_user_from_headers)
-):
-    valid_statuses = ["RECEIVED", "PREPARING", "READY", "COMPLETED", "CANCELLED"]
-    
-
-    """Update order status from restaurant side"""
-    async with AsyncSessionLocal() as session:
-        # Verify authorization
-        restaurant = await session.execute(
-            sa.select(Restaurant).where(Restaurant.id == restaurant_id)
-        )
-        restaurant = restaurant.scalar_one_or_none()
-        
-        if not restaurant:
-            raise HTTPException(status_code=404, detail="Restaurant not found")
-        
-        if user_data.get("role") != "admin" and restaurant.owner_id != user_data.get("sub"):
-            raise HTTPException(status_code=403, detail="Not authorized")
-        
-        # Find restaurant order
-        result = await session.execute(
-            sa.select(RestaurantOrder).where(
-                RestaurantOrder.id == order_id,
-                RestaurantOrder.restaurant_id == restaurant_id
-            )
-        )
-        restaurant_order = result.scalar_one_or_none()
-        
-        if not restaurant_order:
-            raise HTTPException(status_code=404, detail="Order not found")
-        
-        # Update status
-        restaurant_order.status = status_update["status"]
-        restaurant_order.updated_at = datetime.utcnow()
-        
-        # If completed, set actual preparation time
-        if status_update["status"] == "COMPLETED":
-            preparation_time = (datetime.utcnow() - restaurant_order.created_at).total_seconds() / 60
-            restaurant_order.actual_preparation_time = int(preparation_time)
-        
-        await session.commit()
-        
-        # Emit event back to order service about status change
-        event_payload = {
-            "order_id": restaurant_order.order_id,
-            "restaurant_id": restaurant_id,
-            "status": status_update["status"],
-            "updated_at": restaurant_order.updated_at.isoformat(),
-            "delivery_address": restaurant_order.delivery_address
-        }
-        await producer.send_and_wait("order.updated", json.dumps(event_payload).encode("utf-8"))
-        
-        return {"message": "Order status updated successfully"}
 
 @app.get("/health")
 async def health_check():

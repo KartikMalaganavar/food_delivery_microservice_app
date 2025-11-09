@@ -60,9 +60,30 @@ const AdminDashboard = () => {
         ['assigned', 'picked_up', 'in_transit'].includes(d.status?.toLowerCase())
       );
 
-      const totalRevenue = ordersResponse.data?.reduce((sum, order) => {
-        return sum + (order.total_amount || 0);
-      }, 0) || 0;
+      // const totalRevenue = ordersResponse.data?.reduce((sum, order) => {
+      //   return sum + (order?.items.forEach(item => {
+      //     item?.price 
+      //   }); || 0);
+      // }, 0) || 0;
+
+      const totalRevenue = (ordersResponse.data || []).reduce((sum, order) => {
+          // 1. Check if the order object and its items array exist
+          if (order && order.items && Array.isArray(order.items)) {
+              // 2. Use 'reduce' again (or 'map' then 'reduce'/'sum') to calculate
+              //    the total price for all items in the current order.
+              const orderTotal = order.items.reduce((orderSum, item) => {
+                  // 3. Add the item's price if it's a valid number, otherwise add 0
+                  return orderSum + (item?.price || 0);
+              }, 0);
+
+              // 4. Add the current order's total to the main accumulator
+              return sum + orderTotal;
+          }
+
+          // 5. If the order is invalid (e.g., missing items), return the sum unchanged
+          return sum;
+
+      }, 0);
 
       setStats({
         totalOrders: ordersResponse.data?.length || 0,
@@ -255,17 +276,20 @@ const DashboardOverview = ({ stats, recentOrders }) => {
                     #{order.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {order.restaurant?.name || 'N/A'}
+                    {order?.restaurant_id || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ${order.total_amount}
+                    ${order.items.reduce((orderSum, item) => {
+                          // 3. Add the item's price if it's a valid number, otherwise add 0
+                          return orderSum + (item?.price || 0);
+                      }, 0)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        order.status === 'completed'
+                        order.status === 'DELIVERED'
                           ? 'bg-green-100 text-green-800'
-                          : order.status === 'pending'
+                          : order.status === 'PENDING'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}

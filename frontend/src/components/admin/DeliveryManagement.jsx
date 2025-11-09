@@ -217,8 +217,8 @@ const DeliveryManagement = () => {
                       >
                         <option value="">Assign Partner</option>
                         {availablePartners.map(partner => (
-                          <option key={partner.id} value={partner.id}>
-                            Partner #{partner.id}
+                          <option key={partner.partner_id} value={partner.partner_id}>
+                            Partner - {partner.partner_id}
                           </option>
                         ))}
                       </select>
