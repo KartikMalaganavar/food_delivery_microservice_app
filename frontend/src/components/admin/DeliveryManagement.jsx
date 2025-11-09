@@ -15,29 +15,68 @@ const DeliveryManagement = () => {
     fetchAvailablePartners();
   }, []);
 
-  const fetchDeliveries = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const [assignedResponse, availableResponse] = await Promise.all([
-        axios.get(`${API_BASE}/deliveries/assigned`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${API_BASE}/deliveries/available`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
+  // const fetchDeliveries = async () => {
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     const [assignedResponse, availableResponse] = await Promise.all([
+  //       axios.get(`${API_BASE}/deliveries/assigned`, {
+  //         headers: { Authorization: `Bearer ${token}` }
+  //       }),
+  //       axios.get(`${API_BASE}/deliveries/available`, {
+  //         headers: { Authorization: `Bearer ${token}` }
+  //       })
+  //     ]);
 
-      const allDeliveries = [
-        ...(assignedResponse.data || []),
-        ...(availableResponse.data || [])
-      ];
-      setDeliveries(allDeliveries);
-    } catch (error) {
-      console.error('Error fetching deliveries:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     const allDeliveries = [
+  //       ...(assignedResponse.data || []),
+  //       ...(availableResponse.data || [])
+  //     ];
+  //     setDeliveries(allDeliveries);
+  //   } catch (error) {
+  //     console.error('Error fetching deliveries:', error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const fetchDeliveries = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const [assignedResponse, availableResponse] = await Promise.all([
+      axios.get(`${API_BASE}/deliveries/assigned`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      axios.get(`${API_BASE}/deliveries/available`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    ]);
+
+    const assigned = assignedResponse.data || [];
+    const available = availableResponse.data || [];
+
+    // 🧩 Step 1: Collect IDs or unique keys of assigned deliveries
+    const assignedIds = new Set(
+      assigned
+        .filter((d) => d.status === "ASSIGNED")
+        .map((d) => d.id) // or whichever unique field represents the delivery
+    );
+
+    // 🧩 Step 2: Filter out from available if already assigned
+    const filteredAvailable = available.filter(
+      (d) => !assignedIds.has(d.id)
+    );
+
+    // 🧩 Step 3: Combine both lists
+    const allDeliveries = [...assigned, ...filteredAvailable];
+
+    setDeliveries(allDeliveries);
+  } catch (error) {
+    console.error("Error fetching deliveries:", error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const fetchAvailablePartners = async () => {
     try {
@@ -56,7 +95,10 @@ const DeliveryManagement = () => {
       const token = localStorage.getItem('token');
       await axios.post(
         `${API_BASE}/deliveries/${deliveryId}/assign`,
-        { delivery_partner_id: partnerId },
+        { delivery_partner_id: partnerId, 
+          delivery_partner_name: partnerId,
+          delivery_partner_phone: "" 
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert('Delivery partner assigned successfully!');
@@ -70,11 +112,22 @@ const DeliveryManagement = () => {
   const updateDeliveryStatus = async (deliveryId, status) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_BASE}/deliveries/${deliveryId}/status`,
-        { status },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+
+      if(status === "ACCEPTED"){
+        await axios.post(
+          `${API_BASE}/deliveries/${deliveryId}/accept`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+      else{
+
+        await axios.post(
+          `${API_BASE}/deliveries/${deliveryId}/status`,
+          { status },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+
       alert('Delivery status updated successfully!');
       fetchDeliveries();
     } catch (error) {
@@ -202,8 +255,8 @@ const DeliveryManagement = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {delivery.delivery_partner ? (
-                      `Partner #${delivery.delivery_partner.id}`
+                    {delivery.delivery_partner_name ? (
+                      `Partner #${delivery.delivery_partner_name}`
                     ) : (
                       <span className="text-yellow-600">Not Assigned</span>
                     )}
@@ -236,11 +289,11 @@ const DeliveryManagement = () => {
                         defaultValue=""
                       >
                         <option value="">Update Status</option>
-                        <option value="assigned">Assigned</option>
-                        <option value="picked_up">Picked Up</option>
-                        <option value="in_transit">In Transit</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
+                        <option value="ACCEPTED">Accept</option>
+                        <option value="PICKED_UP">Picked Up</option>
+                        <option value="ON_THE_WAY">On the way</option>
+                        <option value="DELIVERED">Delivered</option>
+                        <option value="CANCELLED">Cancelled</option>
                       </select>
                     )}
                   </td>
@@ -285,11 +338,11 @@ const DeliveryManagement = () => {
                   </div>
                 </div>
 
-                {selectedDelivery.delivery_partner && (
+                {selectedDelivery.delivery_partner_name && (
                   <div>
                     <h4 className="font-semibold text-gray-900">Delivery Partner</h4>
                     <p className="text-gray-600">
-                      Partner #{selectedDelivery.delivery_partner.id}
+                      {selectedDelivery.delivery_partner_name}
                     </p>
                   </div>
                 )}

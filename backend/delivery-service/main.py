@@ -128,7 +128,7 @@ class DeliveryPartner(Base):
 class AssignDeliverySchema(BaseModel):
     delivery_partner_id: str
     delivery_partner_name: str
-    delivery_partner_phone: str
+    delivery_partner_phone: Optional[str] = None
 
 class UpdateDeliveryStatusSchema(BaseModel):
     status: str
@@ -403,7 +403,7 @@ async def get_available_delivery_partners():
 @app.get("/deliveries/assigned", response_model=List[DeliveryResponseSchema])
 async def get_my_deliveries(user_data: dict = Depends(get_user_from_headers)):
     """Get deliveries assigned to current delivery partner"""
-    if user_data.get("role") not in ["restaurant", "admin"]:
+    if user_data.get("role") not in ["delivery", "admin"]:
         raise HTTPException(status_code=403, detail="Only delivery partners can access this endpoint")
     
     delivery_partner_id = user_data.get("sub")
@@ -584,7 +584,7 @@ async def accept_delivery(
     user_data: dict = Depends(get_user_from_headers)
 ):
     """Delivery partner accepts a delivery assignment"""
-    if user_data.get("role") != "delivery":
+    if user_data.get("role") not in ["delivery", "admin"]:
         raise HTTPException(status_code=403, detail="Only delivery partners can accept deliveries")
     
     async with AsyncSessionLocal() as session:
@@ -634,7 +634,8 @@ async def update_delivery_status(
 ):
     """Update delivery status (picked up, on the way, delivered, etc.)"""
     valid_transitions = {
-        "delivery": ["ACCEPTED", "PICKED_UP", "ON_THE_WAY", "DELIVERED", "CANCELLED"]
+        "delivery": ["ACCEPTED", "PICKED_UP", "ON_THE_WAY", "DELIVERED", "CANCELLED"],
+        "admin": ["ACCEPTED", "PICKED_UP", "ON_THE_WAY", "DELIVERED", "CANCELLED"]
     }
     
     user_role = user_data.get("role")
