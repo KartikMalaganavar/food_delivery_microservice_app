@@ -6,7 +6,7 @@ const Analytics = () => {
   const [restaurant, setRestaurant] = useState(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('7days'); // 7days, 30days, 90days
+  const [timeRange, setTimeRange] = useState('30days'); // 7days, 30days, 90days
 
   const API_BASE = 'http://localhost:8000/restaurants';
 
@@ -64,8 +64,8 @@ const Analytics = () => {
       new Date(order.created_at) >= startDate
     );
 
-    const totalRevenue = filteredOrders.reduce((sum, order) => sum + (order.total || 0), 0);
-    const completedOrders = filteredOrders.filter(order => order.status === 'DELIVERED').length;
+    const totalRevenue = filteredOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+    const completedOrders = filteredOrders.filter(order => order.status === 'COMPLETED').length;
     const averageOrderValue = filteredOrders.length > 0 ? totalRevenue / filteredOrders.length : 0;
 
     // Popular items calculation (mock - adjust based on your data structure)
@@ -244,7 +244,7 @@ const Analytics = () => {
         <div className="text-center text-gray-500 py-12">
           <div className="text-4xl mb-2">📈</div>
           <p>Revenue chart will be displayed here</p>
-          <p className="text-sm">Integration with charting library needed</p>
+          {/* <p className="text-sm">Integration with charting library needed</p> */}
         </div>
       </div>
 

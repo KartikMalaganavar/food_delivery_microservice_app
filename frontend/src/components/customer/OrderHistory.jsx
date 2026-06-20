@@ -184,7 +184,7 @@ const OrderHistory = () => {
   const availableMonthsYears = getAvailableMonthsYears();
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Order History</h1>
       <p className="text-gray-600 mb-8">Track your current and past orders</p>
 

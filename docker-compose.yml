@@ -1,0 +1,240 @@
+services:
+  
+  kafka:
+    image: confluentinc/cp-kafka:8.1.0
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # KRaft mode (no ZooKeeper)
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Cluster ID (unique, can be generated via `kafka-storage random-uuid`)
+      KAFKA_CLUSTER_ID: "MkcwN2JiNjItN2I1NC00YzI1LTgxZGItOTYyYjRmODAxMjk4"
+
+      # Storage + performance configs
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+      # 🩵 Important fixes for single-broker mode:
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+
+      # Misc
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - shared_network
+
+  # kafkacat:
+  #   image: edenhill/kcat:1.7.1
+  #   entrypoint: ["tail", "-f", "/dev/null"]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "Local Kafka"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:9092"
+      KAFKA_CLUSTERS_0_ZOOKEEPER: ""
+    depends_on:
+      kafka:
+        condition: service_started
+    networks:
+      - shared_network
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: food_delivery
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - shared_network
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - shared_network
+
+  auth-service:
+    build: ./backend/auth-service
+    ports:
+      - "8001:8001"
+    environment:
+      - POSTGRES_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/food_delivery
+      - KAFKA_BOOTSTRAP=kafka:9092
+      # - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - shared_network
+
+  restaurant-service:
+    build: ./backend/restaurant-service
+    ports:
+      - "8002:8002"
+    environment:
+      - POSTGRES_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/food_delivery
+      - KAFKA_BOOTSTRAP=kafka:9092
+      # - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - shared_network
+
+  order-service:
+    build: ./backend/order-service
+    ports:
+      - "8003:8003"
+    environment:
+      - POSTGRES_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/food_delivery
+      - KAFKA_BOOTSTRAP=kafka:9092
+      # - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - shared_network
+
+  delivery-service:
+    build: ./backend/delivery-service
+    ports:
+      - "8004:8004"
+    environment:
+      - POSTGRES_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/food_delivery
+      - KAFKA_BOOTSTRAP=kafka:9092
+      # - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - shared_network
+
+  payment-service:
+    build: ./backend/payment-service
+    ports:
+      - "8005:8005"
+    environment:
+      - POSTGRES_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/food_delivery
+      - KAFKA_BOOTSTRAP=kafka:9092
+      # - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - shared_network
+
+  notification-service:
+    build: ./backend/notification-service
+    ports:
+      - "8006:8006"
+    environment:
+      - POSTGRES_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/food_delivery
+      - KAFKA_BOOTSTRAP=kafka:9092
+      # - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - shared_network
+
+  api-gateway:
+    build: ./backend/api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/food_delivery
+      - KAFKA_BOOTSTRAP=kafka:9092
+      - AUTH_URL=http://auth-service:8001
+      - RESTAURANT_URL=http://restaurant-service:8002
+      - ORDER_URL=http://order-service:8003
+      - DELIVERY_URL=http://delivery-service:8004
+      - PAYMENT_URL=http://payment-service:8005
+      - NOTIFICATION_URL=http://notification-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      restaurant-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      delivery-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+    networks:
+      - shared_network
+
+
+  # Frontend Vite Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: food-delivery-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    networks:
+      - shared_network
+    depends_on:
+      - api-gateway
+
+  
+networks:
+  shared_network:
+    external: true
+
+volumes:
+  kafka_data:
+  pgdata:

@@ -16,12 +16,19 @@ const MenuManagement = () => {
     description: '',
     price: 0,
     category: '',
-    image_url: '',
-    is_available: true,
+    // image_url: '',
+    available: true,
+    is_featured: false,
     preparation_time: 15,
-    ingredients: '',
+    ingredients: [],
     calories: 0,
-    restaurant_id: ''
+    restaurant_id: '',
+    dietary_info: {
+      vegetarian: false,
+      vegan: false,
+      gluten_free: false,
+      spicy: false
+    },
   });
 
   const API_BASE = 'http://localhost:8000/restaurants';
@@ -87,6 +94,8 @@ const MenuManagement = () => {
         preparation_time: parseInt(formData.preparation_time)
       };
 
+      console.log("Create Menu item by admin - ", submitData);
+
       if (editingItem) {
         await axios.put(
           `${API_BASE}/menu-items/${editingItem.id}`,
@@ -134,12 +143,19 @@ const MenuManagement = () => {
       description: item.description,
       price: item.price,
       category: item.category,
-      image_url: item.image_url,
-      is_available: item.is_available,
+      // image_url: item.image_url,
+      available: item.available,
+      is_featured: item.is_featured,
       preparation_time: item.preparation_time,
-      ingredients: item.ingredients,
+      ingredients: item.ingredients || [],
       calories: item.calories,
-      restaurant_id: item.restaurant_id
+      restaurant_id: item.restaurant_id,
+      dietary_info: item.dietary_info || {
+        vegetarian: false,
+        vegan: false,
+        gluten_free: false,
+        spicy: false
+      },
     });
     setShowCreateForm(true);
   };
@@ -150,12 +166,19 @@ const MenuManagement = () => {
       description: '',
       price: 0,
       category: '',
-      image_url: '',
-      is_available: true,
+      // image_url: '',
+      available: true,
+      is_featured: false,
       preparation_time: 15,
-      ingredients: '',
+      ingredients: [],
       calories: 0,
-      restaurant_id: ''
+      restaurant_id: '',
+      dietary_info: {
+        vegetarian: false,
+        vegan: false,
+        gluten_free: false,
+        spicy: false
+      },
     });
     setEditingItem(null);
     setShowCreateForm(false);
@@ -166,7 +189,7 @@ const MenuManagement = () => {
       const token = localStorage.getItem('token');
       await axios.put(
         `${API_BASE}/menu-items/${itemId}`,
-        { is_available: isAvailable },
+        { available: isAvailable },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert('Item availability updated!');
@@ -175,6 +198,24 @@ const MenuManagement = () => {
       console.error('Error updating item availability:', error);
       alert('Failed to update availability');
     }
+  };
+
+  const addIngredient = () => {
+    setFormData({
+      ...formData,
+      ingredients: [...formData.ingredients, '']
+    });
+  };
+
+  const updateIngredient = (index, value) => {
+    const newIngredients = [...formData.ingredients];
+    newIngredients[index] = value;
+    setFormData({ ...formData, ingredients: newIngredients });
+  };
+
+  const removeIngredient = (index) => {
+    const newIngredients = formData.ingredients.filter((_, i) => i !== index);
+    setFormData({ ...formData, ingredients: newIngredients });
   };
 
   if (loading) {
@@ -288,7 +329,7 @@ const MenuManagement = () => {
                     />
                   </div>
 
-                  <div>
+                  {/* <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Image URL
                     </label>
@@ -298,7 +339,7 @@ const MenuManagement = () => {
                       onChange={(e) => setFormData({...formData, image_url: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                  </div>
+                  </div> */}
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -312,7 +353,7 @@ const MenuManagement = () => {
                     />
                   </div>
 
-                  <div className="md:col-span-2">
+                  {/* <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Ingredients
                     </label>
@@ -323,20 +364,97 @@ const MenuManagement = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="List ingredients separated by commas"
                     />
+                  </div> */}
+
+                  {/* Ingredients */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ingredients
+                    </label>
+                    <div className="space-y-2">
+                      {formData.ingredients.map((ingredient, index) => (
+                        <div key={index} className="flex space-x-2">
+                          <input
+                            type="text"
+                            value={ingredient}
+                            onChange={(e) => updateIngredient(index, e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Ingredient"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeIngredient(index)}
+                            className="px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={addIngredient}
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                      >
+                        + Add Ingredient
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_available}
-                      onChange={(e) => setFormData({...formData, is_available: e.target.checked})}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label className="ml-2 text-sm text-gray-700">
-                      Available for order
-                    </label>
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.available}
+                        onChange={(e) => setFormData({...formData, available: e.target.checked})}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label className="ml-2 text-sm text-gray-700">
+                        Available for order
+                      </label>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_featured}
+                        onChange={(e) => setFormData({...formData, is_featured: e.target.checked})}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label className="ml-2 text-sm text-gray-700">
+                        Featured
+                      </label>
+                    </div>
+
+                      {/* {item.is_featured && (
+                        <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                          Featured
+                        </span>
+                      )} */}
                   </div>
                 </div>
+
+                {/* Dietary Information */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dietary Information
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {Object.keys(formData.dietary_info).map(key => (
+                        <label key={key} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.dietary_info[key]}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              dietary_info: {...formData.dietary_info, [key]: e.target.checked}
+                            })}
+                            className="text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700 capitalize">{key.replace('_', ' ')}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
@@ -432,12 +550,12 @@ const MenuManagement = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              item.is_available
+                              item.available
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-red-100 text-red-800'
                             }`}
                           >
-                            {item.is_available ? 'Available' : 'Unavailable'}
+                            {item.available ? 'Available' : 'Unavailable'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -448,14 +566,14 @@ const MenuManagement = () => {
                             Edit
                           </button>
                           <button
-                            onClick={() => updateItemAvailability(item.id, !item.is_available)}
+                            onClick={() => updateItemAvailability(item.id, !item.available)}
                             className={`${
-                              item.is_available
+                              item.available
                                 ? 'text-red-600 hover:text-red-900'
                                 : 'text-green-600 hover:text-green-900'
                             }`}
                           >
-                            {item.is_available ? 'Disable' : 'Enable'}
+                            {item.available ? 'Disable' : 'Enable'}
                           </button>
                           <button
                             onClick={() => deleteMenuItem(item.id)}

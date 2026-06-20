@@ -11,7 +11,7 @@ const Earnings = () => {
   });
   const [deliveryHistory, setDeliveryHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('week');
+  const [timeRange, setTimeRange] = useState('all');
 
   const API_BASE = 'http://localhost:8000/delivery';
 
@@ -22,12 +22,12 @@ const Earnings = () => {
   const fetchEarningsData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/deliveries/assigned`, {
+      const response = await axios.get(`${API_BASE}/deliveries/history`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const completedDeliveries = (response.data || []).filter(d => 
-        d.status === 'DELIVERED'
+      const completedDeliveries = (response.data || []).filter(delivery => 
+        delivery.status === 'DELIVERED' 
       );
 
       // Calculate earnings based on time range
@@ -218,7 +218,7 @@ const Earnings = () => {
               {deliveryHistory.slice(0, 5).map(delivery => (
                 <div key={delivery.id} className="flex justify-between items-center p-3 border-b border-gray-200">
                   <div>
-                    <p className="font-medium text-gray-900">Order #{delivery.order_number}</p>
+                    <p className="font-medium text-gray-900">Order #{delivery.id}</p>
                     <p className="text-sm text-gray-600">
                       {new Date(delivery.actual_delivery_time || delivery.created_at).toLocaleDateString()}
                     </p>

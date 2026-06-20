@@ -259,6 +259,7 @@ venv/
 .venv/
 env/
 ENV/
+backend_venv/
 
 # VSCode & PyCharm
 .vscode/

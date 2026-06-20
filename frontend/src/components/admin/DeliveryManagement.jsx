@@ -46,8 +46,9 @@ const DeliveryManagement = () => {
       axios.get(`${API_BASE}/deliveries/assigned`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
-      axios.get(`${API_BASE}/deliveries/available`, {
-        headers: { Authorization: `Bearer ${token}` },
+      // axios.get(`${API_BASE}/deliveries/available`, {
+      axios.get(`${API_BASE}/deliveries/all-deliveries`, {
+      headers: { Authorization: `Bearer ${token}` },
       }),
     ]);
 
@@ -68,6 +69,8 @@ const DeliveryManagement = () => {
 
     // 🧩 Step 3: Combine both lists
     const allDeliveries = [...assigned, ...filteredAvailable];
+
+    console.log("All deliveries - ", assigned)
 
     setDeliveries(allDeliveries);
   } catch (error) {
@@ -116,6 +119,7 @@ const DeliveryManagement = () => {
       if(status === "ACCEPTED"){
         await axios.post(
           `${API_BASE}/deliveries/${deliveryId}/accept`,
+          {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
       }
@@ -191,16 +195,16 @@ const DeliveryManagement = () => {
       </div>
 
       {/* Delivery Partners Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900">Available Partners</h3>
-          <p className="text-3xl font-bold text-blue-600">{availablePartners.length}</p>
+          <h3 className="text-lg font-semibold text-gray-900">All Deliveries</h3>
+          <p className="text-3xl font-bold text-blue-600">{deliveries.length}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900">Active Deliveries</h3>
           <p className="text-3xl font-bold text-orange-600">
             {deliveries.filter(d => 
-              ['assigned', 'picked_up', 'in_transit'].includes(d.status?.toLowerCase())
+              ['assigned', 'picked_up', 'on_the_way', 'accepted'].includes(d.status?.toLowerCase())
             ).length}
           </p>
         </div>
@@ -209,6 +213,10 @@ const DeliveryManagement = () => {
           <p className="text-3xl font-bold text-yellow-600">
             {deliveries.filter(d => d.status?.toLowerCase() === 'pending').length}
           </p>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900">Available Partners</h3>
+          <p className="text-3xl font-bold text-blue-600">{availablePartners.length}</p>
         </div>
       </div>
 
@@ -262,7 +270,8 @@ const DeliveryManagement = () => {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    {!delivery.delivery_partner && availablePartners.length > 0 && (
+                    
+                    {delivery.status !== "DELIVERED" && !delivery.delivery_partner && availablePartners.length > 0 && (
                       <select
                         onChange={(e) => assignDeliveryPartner(delivery.id, e.target.value)}
                         className="text-sm border border-gray-300 rounded px-2 py-1"
@@ -282,11 +291,11 @@ const DeliveryManagement = () => {
                     >
                       View
                     </button>
-                    {delivery.status !== 'delivered' && delivery.status !== 'cancelled' && (
+                    {/* {delivery.status !== 'DELIVERED' && delivery.status !== 'CANCELLED' && (
                       <select
                         onChange={(e) => updateDeliveryStatus(delivery.id, e.target.value)}
                         className="text-sm border border-gray-300 rounded px-2 py-1"
-                        defaultValue=""
+                        defaultValue={delivery.status}
                       >
                         <option value="">Update Status</option>
                         <option value="ACCEPTED">Accept</option>
@@ -295,7 +304,68 @@ const DeliveryManagement = () => {
                         <option value="DELIVERED">Delivered</option>
                         <option value="CANCELLED">Cancelled</option>
                       </select>
-                    )}
+                    )} */}
+                    {delivery.status !== 'DELIVERED' && delivery.status !== 'CANCELLED' && (
+  <select
+    onChange={(e) => updateDeliveryStatus(delivery.id, e.target.value)}
+    className="text-sm border border-gray-300 rounded px-2 py-1"
+    defaultValue={delivery.status}
+  >
+    <option value=""
+      disabled={delivery.status === 'ACCEPTED' ||
+                delivery.status === 'PICKED_UP' || 
+                delivery.status === 'ON_THE_WAY' || 
+                delivery.status === 'DELIVERED'}
+
+      className={delivery.status === 'ACCEPTED' ||
+                 delivery.status === 'PICKED_UP' || 
+                 delivery.status === 'ON_THE_WAY' || 
+                 delivery.status === 'DELIVERED' ? 
+                 'text-gray-400' : ''}
+    >Update Status</option>
+    
+    {/* ACCEPTED - only enabled if current status is before ACCEPTED */}
+    <option 
+      value="ACCEPTED" 
+      disabled={delivery.status === 'PICKED_UP' || 
+                delivery.status === 'ON_THE_WAY' || 
+                delivery.status === 'DELIVERED'}
+      className={delivery.status === 'PICKED_UP' || 
+                 delivery.status === 'ON_THE_WAY' || 
+                 delivery.status === 'DELIVERED' ? 
+                 'text-gray-400' : ''}
+    >
+      Accept
+    </option>
+    
+    {/* PICKED_UP - enabled if current status is ACCEPTED or before */}
+    <option 
+      value="PICKED_UP" 
+      disabled={delivery.status === 'ON_THE_WAY' || 
+                delivery.status === 'DELIVERED'}
+      className={delivery.status === 'ON_THE_WAY' || 
+                 delivery.status === 'DELIVERED' ? 
+                 'text-gray-400' : ''}
+    >
+      Picked Up
+    </option>
+    
+    {/* ON_THE_WAY - enabled if current status is PICKED_UP or before */}
+    <option 
+      value="ON_THE_WAY" 
+      disabled={delivery.status === 'DELIVERED'}
+      className={delivery.status === 'DELIVERED' ? 'text-gray-400' : ''}
+    >
+      On the way
+    </option>
+    
+    {/* DELIVERED - always enabled until delivered */}
+    <option value="DELIVERED">Delivered</option>
+    
+    {/* CANCELLED - always enabled until delivered */}
+    <option value="CANCELLED">Cancelled</option>
+  </select>
+)}
                   </td>
                 </tr>
               ))}

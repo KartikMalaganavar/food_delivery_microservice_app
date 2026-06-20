@@ -43,7 +43,7 @@ const DeliveryDashboard = () => {
         .reduce((sum, delivery) => sum + (delivery.delivery_fee || 5), 0);
 
       setStats({
-        availableDeliveries: 5, // Mock data - you might need an available deliveries endpoint
+        availableDeliveries: assignedDeliveries.length, // Mock data - you might need an available deliveries endpoint
         activeDeliveries: assignedDeliveries.filter(d => 
           ['ACCEPTED', 'PICKED_UP', 'ON_THE_WAY'].includes(d.status)
         ).length,
@@ -177,7 +177,7 @@ const DeliveryDashboard = () => {
               <Link
                 key={index}
                 to={action.path}
-                className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors border-2 border-transparent hover:border-blue-200"
+                className="bg-gray-50 shadow-md rounded-lg p-4 hover:bg-gray-100 transition-colors border-2 border-transparent hover:border-blue-200"
               >
                 <div className="text-2xl mb-2">{action.icon}</div>
                 <h3 className="font-semibold text-gray-900 mb-1">{action.title}</h3>

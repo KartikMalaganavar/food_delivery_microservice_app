@@ -165,7 +165,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <Sidebar 
         user={user} 
@@ -212,17 +212,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto">
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {/* Welcome Header */}
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  Welcome to Food Delivery App
-                </h1>
-                <p className="text-lg text-gray-600">
-                  Hello, {user?.username}! You are logged in as {user?.role}.
-                </p>
-              </div>
-              
+            <div className={`${requiredRole === 'admin' ? 'max-w-8xl' : 'max-w-7xl'} mx-auto px-4 sm:px-6 lg:px-8 h-fit`}>
               {/* Page Content */}
               {/* <CustomerDashboard /> */}
               {children}

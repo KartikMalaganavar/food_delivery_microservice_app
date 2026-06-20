@@ -45,7 +45,7 @@ const RestaurantDashboard = () => {
           totalOrders: orders.length,
           pendingOrders: orders.filter(order => order.status === 'PLACED' || order.status === 'CONFIRMED').length,
           todayOrders: orders.filter(order => order.created_at?.includes(today)).length,
-          totalRevenue: orders.reduce((sum, order) => sum + (order.total || 0), 0)
+          totalRevenue: orders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
         });
       }
     } catch (error) {
@@ -186,7 +186,7 @@ const RestaurantDashboard = () => {
             <Link
               key={index}
               to={action.path}
-              className="bg-gray-50 rounded-lg p-6 hover:bg-gray-100 transition-colors border-2 border-transparent hover:border-blue-200"
+              className="bg-gray-50 shadow-md rounded-lg p-6 hover:bg-gray-100 transition-colors border-2 border-transparent hover:border-blue-200"
             >
               <div className="text-3xl mb-3">{action.icon}</div>
               <h3 className="font-semibold text-gray-900 mb-2">{action.title}</h3>

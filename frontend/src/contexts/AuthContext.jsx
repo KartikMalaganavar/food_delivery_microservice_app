@@ -19,69 +19,58 @@ export const AuthProvider = ({ children }) => {
 
   const [cart, setCart] = useState([]);
 
-
-  // API base URL - adjust according to your backend
-  // const API_BASE = 'http://localhost:8000';
-  // const API_BASE = 'http://localhost:8000';
-  
-
-  // useEffect(() => {
-  //   if (token) {
-  //     // Verify token on app start
-  //     verifyToken();
-  //   } else {
-  //     setLoading(false);
-  //   }
-  // }, [token]);
-
-  // const verifyToken = async () => {
-  //   try {
-  //     const response = await axios.get(`${API_BASE}/auth/verify`, {
-  //       headers: { Authorization: `Bearer ${token}` }
-  //     });
-
-  //     console.log(response.data.user)
-  //     setUser(response.data.user);
-  //   } catch (error) {
-  //     console.error('Token verification failed:', error);
-  //     logout();
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const verificationInProgress = useRef(false); // Add this ref
 
   const API_BASE = 'http://localhost:8000';
+  // const API_BASE = 'http://api-gateway:8000';
+
 
   useEffect(() => {
-    // Skip if verification is already in progress or no token
-    if (verificationInProgress.current || !token) {
-      setLoading(false);
+    if (verificationInProgress.current) {
       return;
     }
 
-    const verifyToken = async () => {
-      verificationInProgress.current = true; // Set flag
+    const initializeAuth = async () => {
+      verificationInProgress.current = true;
       
       try {
-        const response = await axios.get(`${API_BASE}/auth/verify`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        console.log('Token verification response:', response.data.user);
-        setUser(response.data.user);
+        if (token) {
+          // Try to verify with backend first
+          try {
+            const response = await axios.get(`${API_BASE}/auth/verify`, {
+              headers: { Authorization: `Bearer ${token}` },
+              timeout: 5000 // 5 second timeout
+            });
+            
+            if (response.data.user) {
+              setUser(response.data.user);
+            } else {
+              throw new Error('No user data in response');
+            }
+          } catch (apiError) {
+            console.log('API verification failed, falling back to local decode:', apiError.message);
+            
+            // Fallback: decode token locally
+            const userData = decodeToken(token);
+            if (userData) {
+              setUser(userData);
+              console.log('User authenticated via local token decoding');
+            } else {
+              logout();
+            }
+          }
+        }
       } catch (error) {
-        console.error('Token verification failed:', error);
+        console.error('Auth initialization error:', error);
         logout();
       } finally {
         setLoading(false);
-        verificationInProgress.current = false; // Reset flag
+        verificationInProgress.current = false;
       }
     };
 
-    verifyToken();
-  }, [token]); // Only depend on token
+    initializeAuth();
+  }, [token]);
 
   const login = async (username, password) => {
     try {

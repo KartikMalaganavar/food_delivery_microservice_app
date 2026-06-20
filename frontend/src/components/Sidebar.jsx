@@ -60,7 +60,8 @@ const Sidebar = ({ user, isOpen, onClose }) => {
       )}
 
       {/* Sidebar */}
-      <div className={`
+      {user?.role !== 'admin' && 
+        <div className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:translate-x-0 md:static md:inset-0
@@ -87,7 +88,7 @@ const Sidebar = ({ user, isOpen, onClose }) => {
         </div>
 
         {/* Navigation Items */}
-        <nav className="mt-8 px-4 space-y-2">
+        <nav className="my-8 px-4 space-y-2 h-fit overflow-x-auto">
           {navItems.map((item) => (
             <Link
               key={item.path}
@@ -138,6 +139,8 @@ const Sidebar = ({ user, isOpen, onClose }) => {
           </button>
         </div>
       </div>
+      }
+      
     </>
   );
 };

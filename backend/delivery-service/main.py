@@ -350,6 +350,26 @@ async def handle_user_updated(topic, value):
     except Exception as e:
         print(f"❌ Error handling user update: {e}")
 
+
+# Admin related endpoints
+@app.get("/deliveries/all-deliveries", response_model=List[DeliveryResponseSchema])
+async def get_all_deliveries(user_data: dict = Depends(get_user_from_headers)):
+    """Get available deliveries for delivery partners"""
+    access = ["admin"]
+    if user_data.get("role") not in access:
+        raise HTTPException(status_code=403, detail="Only delivery/admin partners can access this endpoint")
+    
+    async with AsyncSessionLocal() as session:
+        deliveries = await session.execute(
+            sa.select(DeliveryAssignment).order_by(DeliveryAssignment.created_at.desc())
+            # sa.select(DeliveryAssignment).where(
+            #     # DeliveryAssignment.status.in_(["PENDING", "ASSIGNED"])
+            # ).order_by(DeliveryAssignment.created_at.desc())
+        )
+        deliveries = deliveries.scalars().all()
+        return deliveries
+
+
 # Admin related endpoints
 @app.get("/deliveries/available", response_model=List[DeliveryResponseSchema])
 async def get_available_deliveries(user_data: dict = Depends(get_user_from_headers)):
@@ -415,7 +435,7 @@ async def get_my_deliveries(user_data: dict = Depends(get_user_from_headers)):
         if user_data.get("role") == "admin":
             deliveries = await session.execute(
                 sa.select(DeliveryAssignment).where( 
-                    DeliveryAssignment.status.in_(["ASSIGNED", "ACCEPTED", "PICKED_UP", "ON_THE_WAY"])
+                    DeliveryAssignment.status.in_(["ASSIGNED"])
                 ).order_by(DeliveryAssignment.created_at.desc())
             )    
         else:
@@ -423,6 +443,41 @@ async def get_my_deliveries(user_data: dict = Depends(get_user_from_headers)):
                 sa.select(DeliveryAssignment).where( 
                     DeliveryAssignment.delivery_partner_id == delivery_partner_id,
                     DeliveryAssignment.status.in_(["ASSIGNED", "ACCEPTED", "PICKED_UP", "ON_THE_WAY"])
+                ).order_by(DeliveryAssignment.created_at.desc())
+            )
+         
+        deliveries = deliveries.scalars().all()
+        
+        return deliveries
+
+# const response = await axios.get(`${API_BASE}/deliveries/${user.sub}/history`, {
+#         headers: { Authorization: `Bearer ${token}` }
+#       });
+
+@app.get("/deliveries/history")
+async def get_my_delivery_history(user_data: dict = Depends(get_user_from_headers)):
+    """Get deliveries assigned to current delivery partner"""
+    if user_data.get("role") not in ["delivery", "admin"]:
+        raise HTTPException(status_code=403, detail="Only delivery partners can access this endpoint")
+    
+    delivery_partner_id = user_data.get("sub")
+    
+    async with AsyncSessionLocal() as session:
+
+
+        deliveries = None    
+        if user_data.get("role") == "admin":
+            deliveries = await session.execute(
+                sa.select(DeliveryAssignment).where( 
+                    # DeliveryAssignment.delivery_partner_id == delivery_partner_id,
+                    DeliveryAssignment.status.in_(["DELIVERED"])
+                ).order_by(DeliveryAssignment.created_at.desc())
+            )    
+        else:
+            deliveries = await session.execute(
+                sa.select(DeliveryAssignment).where( 
+                    DeliveryAssignment.delivery_partner_id == delivery_partner_id,
+                    # DeliveryAssignment.status.in_(["DELIVERED"])
                 ).order_by(DeliveryAssignment.created_at.desc())
             )
          
@@ -584,6 +639,7 @@ async def accept_delivery(
     user_data: dict = Depends(get_user_from_headers)
 ):
     """Delivery partner accepts a delivery assignment"""
+    print(delivery_id, user_data.get("role"))
     if user_data.get("role") not in ["delivery", "admin"]:
         raise HTTPException(status_code=403, detail="Only delivery partners can accept deliveries")
     
@@ -592,6 +648,7 @@ async def accept_delivery(
             sa.select(DeliveryAssignment).where(DeliveryAssignment.id == delivery_id)
         )
         delivery = delivery.scalar_one_or_none()
+        print("delivery - ", delivery)
         
         if not delivery:
             raise HTTPException(status_code=404, detail="Delivery assignment not found")
@@ -599,10 +656,12 @@ async def accept_delivery(
         if delivery.status != "ASSIGNED":
             raise HTTPException(status_code=400, detail="Delivery is not available for acceptance")
         
-        # Update delivery assignment
-        delivery.delivery_partner_id = user_data.get("sub")
-        delivery.delivery_partner_name = user_data.get("sub")  # In real app, fetch from user service
-        delivery.delivery_partner_phone = "+1234567890"  # Fetch from user service
+        if user_data.get("role") == "delivery":
+            # Update delivery assignment
+            delivery.delivery_partner_id = user_data.get("sub")
+            delivery.delivery_partner_name = user_data.get("sub")  # In real app, fetch from user service
+            delivery.delivery_partner_phone = "+1234567890"  # Fetch from user service
+        
         delivery.status = "ACCEPTED"
         delivery.updated_at = datetime.utcnow()
         

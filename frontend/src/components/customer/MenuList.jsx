@@ -432,7 +432,7 @@ const MenuList = () => {
               </div>
             ) : (
               <>
-                <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+                <div className="space-y-3 mb-4 max-h-64 overflow-y-auto px-1">
                   {cart.map(item => (
                     <div key={item.id} className="border-b border-gray-200 pb-3 last:border-b-0">
                       {/* Item Header */}

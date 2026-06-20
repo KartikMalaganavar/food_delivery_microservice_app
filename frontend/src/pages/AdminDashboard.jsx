@@ -6,6 +6,7 @@ import OrderManagement from '../components/admin/OrderManagement';
 import DeliveryManagement from '../components/admin/DeliveryManagement';
 import MenuManagement from '../components/admin/MenuManagement';
 import PaymentManagement from '../components/admin/PaymentManagement';
+import { useAuth } from '../contexts/AuthContext';
 
 
 
@@ -18,6 +19,7 @@ const AdminDashboard = () => {
     totalRevenue: 0
   });
   const [recentOrders, setRecentOrders] = useState([]);
+  const {logout} = useAuth();
 
   const API_BASE = 'http://localhost:8000';
 
@@ -131,10 +133,7 @@ const AdminDashboard = () => {
             <div className="flex items-center space-x-4">
               <span className="text-gray-700">Welcome, Admin</span>
               <button
-                onClick={() => {
-                  localStorage.removeItem('token');
-                  window.location.href = '/login';
-                }}
+                onClick={logout}
                 className="text-red-600 hover:text-red-700"
               >
                 Logout

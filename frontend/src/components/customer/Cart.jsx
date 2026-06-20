@@ -38,7 +38,7 @@ const Cart = () => {
       // Assuming all items in cart are from the same restaurant
       const restaurantId = cart[0]?.restaurant_id;
       if (restaurantId) {
-        const response = await axios.get(`${API_BASE}/restaurants/${restaurantId}`, {
+        const response = await axios.get(`${API_BASE}/restaurants/restaurants/${restaurantId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setRestaurant(response.data);
@@ -163,17 +163,22 @@ const Cart = () => {
 
   if (cart.length === 0 && step !== 'success') {
     return (
-      <div className="max-w-4xl mx-auto py-8">
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+      <div className="min-h-fit py-8">
+        <div className="bg-white rounded-lg shadow-md p-8 text-center min-h-fit">
           <div className="text-6xl mb-4">🛒</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
           <p className="text-gray-600 mb-6">Add some delicious items from our restaurants!</p>
-          <Link
+          <button
+          
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold w-fit"
+          >
+<Link
             to="/customer/restaurants"
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
           >
             Browse Restaurants
           </Link>
+          </button>
+          
         </div>
       </div>
     );

@@ -80,6 +80,7 @@ import asyncio, json
 from common.kafka_utils import get_producer, stop_producer
 from aiokafka import AIOKafkaConsumer
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -95,7 +96,7 @@ async def consume_order_events():
         "order.updated",
         "order.cancelled",
         "payment.completed",
-        bootstrap_servers='localhost:9092',
+        bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP", "localhost:9092"),
         group_id="restaurant-service-group",
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
@@ -164,7 +165,7 @@ async def handle_order_updated(order_data: dict):
         if restaurant_order:
             # Update status based on order service status
             status_mapping = {
-                "CONFIRMED": "RECEIVED",
+                "CONFIRMED": "CONFIRMED",
                 "PREPARING": "PREPARING", 
                 "READY": "READY",
                 "COMPLETED": "COMPLETED",
@@ -678,9 +679,9 @@ async def delete_menu_item(
 @app.get("/restaurants/{restaurant_id}/orders")
 async def get_restaurant_orders(
     restaurant_id: int,
-    status: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    # status: Optional[str] = Query(None),
+    # skip: int = Query(0, ge=0),
+    # limit: int = Query(100, ge=1, le=1000),
     user_data: dict = Depends(get_user_from_headers)
 ):
     """Get orders for a specific restaurant - only owner or admin"""
@@ -703,25 +704,25 @@ async def get_restaurant_orders(
             RestaurantOrder.restaurant_id == restaurant_id
         )
         
-        if status:
-            query = query.where(RestaurantOrder.status == status)
+        # if status:
+        #     query = query.where(RestaurantOrder.status == status)
         
-        # Order by creation date, newest first
-        query = query.order_by(RestaurantOrder.created_at.desc())
+        # # Order by creation date, newest first
+        # query = query.order_by(RestaurantOrder.created_at.desc())
         
-        # Add pagination
-        query = query.offset(skip).limit(limit)
+        # # Add pagination
+        # query = query.offset(skip).limit(limit)
         
         result = await session.execute(query)
         orders = result.scalars().all()
         
         return {
             "orders": orders,
-            "pagination": {
-                "skip": skip,
-                "limit": limit,
-                "total": len(orders)
-            }
+            # "pagination": {
+            #     "skip": skip,
+            #     "limit": limit,
+            #     "total": len(orders)
+            # }
         }
 
 @app.patch("/restaurants/{restaurant_id}/orders/{order_id}/status")
@@ -731,10 +732,10 @@ async def update_order_status(
     status_update: dict,
     user_data: dict = Depends(get_user_from_headers)
 ):
-    valid_statuses = ["RECEIVED", "PREPARING", "READY", "COMPLETED", "CANCELLED"]
     
 
     """Update order status from restaurant side"""
+    valid_statuses = ["RECEIVED", "CONFIRMED", "PREPARING", "READY", "COMPLETED", "CANCELLED"]
     async with AsyncSessionLocal() as session:
         # Verify authorization
         restaurant = await session.execute(
@@ -751,7 +752,7 @@ async def update_order_status(
         # Find restaurant order
         result = await session.execute(
             sa.select(RestaurantOrder).where(
-                RestaurantOrder.id == order_id,
+                RestaurantOrder.order_id == order_id,
                 RestaurantOrder.restaurant_id == restaurant_id
             )
         )
@@ -761,25 +762,37 @@ async def update_order_status(
             raise HTTPException(status_code=404, detail="Order not found")
         
         # Update status
+        print("testing status bfr - ", restaurant_order.status)
         restaurant_order.status = status_update["status"]
         restaurant_order.updated_at = datetime.utcnow()
+        print("testing status after - ", restaurant_order.status)
+
         
         # If completed, set actual preparation time
         if status_update["status"] == "COMPLETED":
             preparation_time = (datetime.utcnow() - restaurant_order.created_at).total_seconds() / 60
             restaurant_order.actual_preparation_time = int(preparation_time)
         
+         # Commit before sending Kafka message
         await session.commit()
+        await session.refresh(restaurant_order)  # Refresh to ensure we have latest data
+
+
         
         # Emit event back to order service about status change
-        event_payload = {
-            "order_id": restaurant_order.order_id,
-            "restaurant_id": restaurant_id,
-            "status": status_update["status"],
-            "updated_at": restaurant_order.updated_at.isoformat(),
-            "delivery_address": restaurant_order.delivery_address
-        }
-        await producer.send_and_wait("order.updated", json.dumps(event_payload).encode("utf-8"))
+        # (moved after commit to ensure data is persisted first)
+        try:
+            event_payload = {
+                "order_id": restaurant_order.order_id,
+                "restaurant_id": restaurant_id,
+                "status": restaurant_order.status,  # Use the committed value
+                "updated_at": restaurant_order.updated_at.isoformat(),
+                "delivery_address": restaurant_order.delivery_address
+            }
+            await producer.send_and_wait("order.updated", json.dumps(event_payload).encode("utf-8"))
+        except Exception as e:
+            # Log the error but don't fail the request since DB update succeeded
+            print(f"Failed to send Kafka event: {e}")
         
         return {"message": "Order status updated successfully"}
 

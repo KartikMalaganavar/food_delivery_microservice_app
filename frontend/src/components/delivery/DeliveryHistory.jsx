@@ -1,6 +1,7 @@
 // src/components/delivery/DeliveryHistory.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 const DeliveryHistory = () => {
   const [deliveryHistory, setDeliveryHistory] = useState([]);
@@ -17,7 +18,11 @@ const DeliveryHistory = () => {
   const fetchDeliveryHistory = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE}/deliveries/assigned`, {
+      // const response = await axios.get(`${API_BASE}/deliveries/assigned`, {
+      //   headers: { Authorization: `Bearer ${token}` }
+      // });
+
+      const response = await axios.get(`${API_BASE}/deliveries/history`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

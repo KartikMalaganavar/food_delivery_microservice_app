@@ -25,13 +25,13 @@
 
 
 # payment-service/main.py
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Query
 from pydantic import BaseModel
 from typing import Optional, List
 import asyncio
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from common.kafka_utils import get_producer, start_consumer, stop_producer
 from common.db import Base, engine, AsyncSessionLocal
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text
@@ -39,6 +39,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import sqlalchemy as sa
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import os
+from sqlalchemy import func
+from sqlalchemy.future import select
 
 
 app = FastAPI(title="Payment Service")
@@ -97,6 +99,28 @@ class PaymentWebhookSchema(BaseModel):
     status: str
     signature: Optional[str] = None  # For webhook verification
     raw_response: dict
+
+class PaymentResponse(BaseModel):
+    id: int
+    payment_id: str
+    order_id: int
+    order_number: Optional[str]
+    customer_id: str
+    amount: float
+    currency: str
+    payment_method: Optional[str]
+    payment_gateway: Optional[str]
+    status: str
+    gateway_transaction_id: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    is_refunded: bool
+    refund_amount: float
+    
+    class Config:
+        from_attributes = True
+
+
 
 # Global variables
 producer = None
@@ -479,6 +503,171 @@ async def payment_webhook(gateway_name: str, payload: dict):
     except Exception as e:
         print(f"Webhook error: {e}")
         raise HTTPException(status_code=400, detail="Webhook processing failed")
+
+@app.get("/payments", response_model=List[PaymentResponse])
+async def get_payments(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    status: Optional[str] = Query(None, description="Filter by payment status"),
+    payment_method: Optional[str] = Query(None, description="Filter by payment method"),
+    start_date: Optional[datetime] = Query(None, description="Filter payments from this date"),
+    end_date: Optional[datetime] = Query(None, description="Filter payments until this date"),
+    customer_id: Optional[str] = Query(None, description="Filter by customer ID"),
+    order_id: Optional[int] = Query(None, description="Filter by order ID"),
+    search: Optional[str] = Query(None, description="Search in order number or payment ID"),
+    sort_by: str = Query("created_at", description="Field to sort by"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$", description="Sort order: asc or desc")
+):
+    """
+    Get paginated list of payments with filtering options for admin panel.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            # Build query
+            stmt = select(Payment)
+            
+            # Apply filters
+            if status:
+                stmt = stmt.where(Payment.status == status.upper())
+            
+            if payment_method:
+                stmt = stmt.where(Payment.payment_method == payment_method)
+            
+            if start_date:
+                stmt = stmt.where(Payment.created_at >= start_date)
+            
+            if end_date:
+                # Add one day to include the entire end date
+                stmt = stmt.where(Payment.created_at < end_date + timedelta(days=1))
+            
+            if customer_id:
+                stmt = stmt.where(Payment.customer_id == customer_id)
+            
+            if order_id:
+                stmt = stmt.where(Payment.order_id == order_id)
+            
+            if search:
+                search_term = f"%{search}%"
+                stmt = stmt.where(
+                    (Payment.order_number.ilike(search_term)) | 
+                    (Payment.payment_id.ilike(search_term)) |
+                    (Payment.gateway_transaction_id.ilike(search_term))
+                )
+            
+            # Apply sorting
+            sort_column = getattr(Payment, sort_by, Payment.created_at)
+            if sort_order == "desc":
+                stmt = stmt.order_by(sort_column.desc())
+            else:
+                stmt = stmt.order_by(sort_column.asc())
+            
+            # Get total count for pagination info
+            count_stmt = select(func.count()).select_from(stmt.subquery())
+            total_result = await session.execute(count_stmt)
+            total = total_result.scalar()
+            
+            # Apply pagination and execute
+            stmt = stmt.offset(skip).limit(limit)
+            result = await session.execute(stmt)
+            payments = result.scalars().all()
+            
+            return payments
+            
+        except Exception as e:
+            print(f"Error fetching payments: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/stats", response_model=dict)
+async def get_payment_statistics(
+    start_date: Optional[datetime] = Query(None, description="Start date for statistics"),
+    end_date: Optional[datetime] = Query(None, description="End date for statistics")
+):
+    """
+    Get payment statistics for dashboard.
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            # Build base query
+            stmt = select(Payment)
+            
+            # Apply date filters if provided
+            if start_date:
+                stmt = stmt.where(Payment.created_at >= start_date)
+            if end_date:
+                stmt = stmt.where(Payment.created_at < end_date + timedelta(days=1))
+            
+            # Execute query
+            result = await session.execute(stmt)
+            all_payments = result.scalars().all()
+            
+            # Calculate statistics
+            total_payments = len(all_payments)
+            
+            # Calculate amounts by status using async queries for better performance
+            completed_payments = [p for p in all_payments if p.status == "COMPLETED"]
+            pending_payments = [p for p in all_payments if p.status == "PENDING"]
+            
+            completed_amount = sum(p.amount for p in completed_payments)
+            pending_amount = sum(p.amount for p in pending_payments)
+            refunded_amount = sum(p.refund_amount for p in all_payments if p.is_refunded)
+            
+            # Count by status
+            status_counts = {}
+            for payment in all_payments:
+                status_counts[payment.status] = status_counts.get(payment.status, 0) + 1
+            
+            # Count by payment method
+            method_counts = {}
+            for payment in all_payments:
+                method = payment.payment_method or "unknown"
+                method_counts[method] = method_counts.get(method, 0) + 1
+            
+            # Calculate average amount for completed payments
+            completed_count = len(completed_payments)
+            average_amount = completed_amount / completed_count if completed_count > 0 else 0
+            
+            # Get payment method distribution
+            payment_methods = {}
+            for payment in all_payments:
+                method = payment.payment_method or "unknown"
+                payment_methods[method] = payment_methods.get(method, 0) + 1
+            
+            # Get recent payments count (last 7 days)
+            week_ago = datetime.utcnow() - timedelta(days=7)
+            recent_payments = [p for p in all_payments if p.created_at >= week_ago]
+            
+            # Get daily revenue for the last 7 days
+            daily_revenue = {}
+            for i in range(7):
+                day = datetime.utcnow() - timedelta(days=i)
+                day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+                day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+                
+                day_payments = [
+                    p for p in completed_payments 
+                    if day_start <= p.created_at <= day_end
+                ]
+                daily_revenue[day.strftime("%Y-%m-%d")] = sum(p.amount for p in day_payments)
+            
+            return {
+                "total_payments": total_payments,
+                "total_amount": completed_amount,
+                "pending_amount": pending_amount,
+                "refunded_amount": refunded_amount,
+                "status_counts": status_counts,
+                "method_counts": method_counts,
+                "average_amount": round(average_amount, 2),
+                "recent_payments_count": len(recent_payments),
+                "daily_revenue": daily_revenue,
+                "completed_count": completed_count,
+                "pending_count": len(pending_payments),
+                "refunded_count": sum(1 for p in all_payments if p.is_refunded)
+            }
+            
+        except Exception as e:
+            print(f"Error calculating payment statistics: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/health")
 async def health_check():

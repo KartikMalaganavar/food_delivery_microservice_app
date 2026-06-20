@@ -407,8 +407,8 @@ const MenuManagement = () => {
       )}
 
       {/* Menu Items List */}
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b border-gray-200">
+      <div className="">
+        <div className="p-6 border-b border-gray-200 rounded-b-lg shadow-lg">
           <h2 className="text-lg font-semibold text-gray-900">Menu Items</h2>
         </div>
         
@@ -418,9 +418,9 @@ const MenuManagement = () => {
             <p>No menu items yet. Add your first item to get started!</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="flex flex-col gap-4 my-2">
             {menuItems.map(item => (
-              <div key={item.id} className="p-6">
+              <div key={item.id} className="p-6 bg-slate-50  shadow-md rounded-lg">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">

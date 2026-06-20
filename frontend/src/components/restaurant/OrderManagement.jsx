@@ -151,7 +151,7 @@ const OrderManagement = () => {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Order #{order.order_number}
+                    Order #{order.id}
                   </h3>
                   <p className="text-gray-600 text-sm">
                     Placed on {new Date(order.created_at).toLocaleDateString()}
@@ -161,7 +161,7 @@ const OrderManagement = () => {
                 
                 <div className="text-right">
                   <p className="text-lg font-bold text-gray-900">
-                    ${order.total?.toFixed(2)}
+                    ${order.total_amount?.toFixed(2)}
                   </p>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                     {order.status}

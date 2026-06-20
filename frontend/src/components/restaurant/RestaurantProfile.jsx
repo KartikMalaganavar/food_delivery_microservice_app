@@ -120,7 +120,7 @@ const RestaurantProfile = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="mx-auto">
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -395,7 +395,7 @@ const RestaurantProfile = () => {
           /* View Mode */
           <div className="space-y-6">
             {/* Restaurant Header */}
-            <div className="flex items-start space-x-6">
+            <div className="flex bg-gray-50 items-start space-x-6 shadow-md py-4 px-4 rounded-lg">
               {restaurant.image_url && (
                 <img
                   src={restaurant.image_url}
@@ -442,7 +442,7 @@ const RestaurantProfile = () => {
             {/* Address */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Address</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-4 shadow-md">
                 <p className="text-gray-900">{restaurant.address.street}</p>
                 <p className="text-gray-900">
                   {restaurant.address.city}, {restaurant.address.state} {restaurant.address.zip_code}
@@ -452,19 +452,19 @@ const RestaurantProfile = () => {
 
             {/* Delivery Settings */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-4 shadow-md">
                 <h4 className="font-medium text-gray-700 mb-1">Minimum Order</h4>
                 <p className="text-lg font-semibold text-gray-900">
                   ${restaurant.min_order_amount?.toFixed(2) || '0.00'}
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-4 shadow-md">
                 <h4 className="font-medium text-gray-700 mb-1">Delivery Fee</h4>
                 <p className="text-lg font-semibold text-gray-900">
                   ${restaurant.delivery_fee?.toFixed(2) || '2.99'}
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 rounded-lg p-4 shadow-md">
                 <h4 className="font-medium text-gray-700 mb-1">Rating</h4>
                 <p className="text-lg font-semibold text-gray-900">
                   {restaurant.rating || 'No ratings yet'}
@@ -475,8 +475,8 @@ const RestaurantProfile = () => {
             {/* Opening Hours */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Opening Hours</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-lg p-4 shadow-md">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-40 gap-y-4">
                   {Object.entries(restaurant.opening_hours || {}).map(([day, hours]) => (
                     <div key={day} className="flex justify-between">
                       <span className="font-medium text-gray-700 capitalize">{day}:</span>
