@@ -38,3 +38,6 @@ ENV/
 # VSCode & PyCharm
 .vscode/
 .idea/
+
+.env
+__pycache__/

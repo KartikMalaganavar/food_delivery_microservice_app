@@ -264,3 +264,6 @@ backend_venv/
 # VSCode & PyCharm
 .vscode/
 .idea/
+
+.env
+__pycache__/
